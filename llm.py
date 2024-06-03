@@ -38,6 +38,8 @@ class model:
                 logging.debug('llm [%s]: answer: %s\n time: %.2fs' % (self.model,res,time.time()-start_time))
                 return res
         return None
+    async def internal_embedding(self,input):
+        return None
     async def query(self,input,history=[],images=[]):
         if not await self.avalible():
             logging.warning('llm [%s]: server seems to be unavalible' % (self.model))
@@ -62,8 +64,17 @@ class model:
                         r = await resp.json()
                         if time.time()-start > 0.1:
                             logging.debug('llm [%s]: model loaded' % (self.model))
-                        self.fingerprint = r['system_fingerprint']
-                        return True
+                        if 'system_fingerprint' in r:
+                            self.fingerprint = r['system_fingerprint']
+                            return True
+                    ajson = {
+                        "name": self.model,
+                    }                
+                    async with session.post(self.api+"/api/show",headers=headers, json=ajson) as resp:
+                        r = await resp.json()
+                        if resp.ok:
+                            self.fingerprint = 'fp_ollama'
+                            return True
             except BaseException as e: 
                 logging.warning(str(e))
             return False
@@ -80,6 +91,14 @@ class model:
                         break
                 if Status_ok: break
         return await check_status()
+    async def embedding(self,input):
+        if not await self.avalible():
+            logging.warning('llm [%s]: server seems to be unavalible' % (self.model))
+            return None
+        if self.fingerprint == 'fp_ollama':
+            return await ollama_model.internal_embedding(self,input)
+        else: 
+            return await self.internal_embedding(self,input)
     def extract_json(self,text):
         if str(text) != text:
             return None
@@ -99,3 +118,25 @@ class ollama_model(model):
         pass
     async def internal_query(self, input, history=[], images=[], url="/api/chat"):
         return await self.internal_query(input,history,images,url)
+    async def internal_embedding(self, input, url="/api/embeddings"):
+        headers = {"Content-Type": "application/json"}
+        if self.kwargs.get('apikey'):
+            headers["Authorization"] = f"Bearer {self.kwargs.get('apikey')}"
+        start_time = time.time()
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=None)) as session:
+            ajson = {
+                "model": self.model,
+                "prompt": input,
+            }
+            if self.kwargs.get('keep_alive',None):
+                ajson['keep_alive'] = self.kwargs.get('keep_alive')
+            logging.debug('llm [%s]: query: %s' % (self.model,input))
+            async with session.post(self.api+url, headers=headers, json=ajson) as resp:
+                response_json = await resp.json()
+                if 'error' in response_json:
+                    if not response_json['error']['type'] == 'invalid_request_error':
+                        logging.warning(str(response_json['error']['message']))
+                        return False
+                res = response_json['embedding']
+                logging.debug('llm [%s]: embedding\n time: %.2fs' % (self.model,time.time()-start_time))
+                return res
