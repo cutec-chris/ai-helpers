@@ -62,7 +62,7 @@ class model:
                     start = time.time()
                     async with session.post(self.api+"/v1/chat/completions",headers=headers, json=ajson) as resp:
                         r = await resp.json()
-                        if time.time()-start > 0.1:
+                        if time.time()-start > 0.3:
                             logging.debug('llm [%s]: model loaded' % (self.model))
                         if 'system_fingerprint' in r:
                             self.fingerprint = r['system_fingerprint']
@@ -130,7 +130,7 @@ class ollama_model(model):
             }
             if self.kwargs.get('keep_alive',None):
                 ajson['keep_alive'] = self.kwargs.get('keep_alive')
-            logging.debug('llm [%s]: query: %s' % (self.model,input))
+            logging.debug('llm [%s]: embedding query len: %d' % (self.model,len(input)))
             async with session.post(self.api+url, headers=headers, json=ajson) as resp:
                 response_json = await resp.json()
                 if 'error' in response_json:

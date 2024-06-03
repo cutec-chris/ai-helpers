@@ -24,13 +24,12 @@ def init(path=None):
     """)
 def add(type,content,url,content_embedding):
     global db
-    db.execute("""
+    res = db.execute("""
     INSERT INTO knowledge (type, content,url, timestamp, content_embedding) VALUES (?, ?, ?, ?, ?);
     """,[type,content,url,datetime.datetime.now(),content_embedding])
-    lastRowId = db.execute("SELECT last_insert_rowid()")
     db.execute("""
     INSERT INTO vss_knowledge(rowid, content_embedding) VALUES (?, ?)
-    """,[lastRowId, content_embedding])
+    """,[res.lastrowid, content_embedding])
 def search(type,content):
     global db
     res = db.execute("""
