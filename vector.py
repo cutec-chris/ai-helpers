@@ -1,7 +1,14 @@
 import mdsplit,sqlite3,sqlite_vss,datetime
 db = None
+max_length = 300
 def split(text):
-    return mdsplit.split_by_heading(text,1)
+    for part in mdsplit.split_by_heading(text,3):
+        embed_source = ''.join(part.text)
+        while '\n\n' in embed_source: embed_source = embed_source.replace('\n\n','\n')
+        while len(embed_source)>max_length:
+            yield embed_source[:max_length]
+            embed_source = embed_source[max_length:]
+        yield embed_source
 def init(path=None):
     global db
     if not path:
