@@ -1,14 +1,18 @@
-import mdsplit,sqlite3,sqlite_vss,datetime
+import sqlite3,sqlite_vss,datetime,re
 db = None
 max_length = 300
-def split(text):
-    for part in mdsplit.split_by_heading(text,3):
-        embed_source = ''.join(part.text)
-        while '\n\n' in embed_source: embed_source = embed_source.replace('\n\n','\n')
-        while len(embed_source)>max_length:
-            yield embed_source[:max_length]
-            embed_source = embed_source[max_length:]
-        yield embed_source
+def split(markdown_text):
+    separators = [r'\n-+\n', r'\n=+\n', r'\n\*{20,}\n']
+    for separator in separators:
+        markdown_text = re.sub(separator, '__SEPARATOR__', markdown_text)
+    sections = markdown_text.split('__SEPARATOR__')
+    for section in sections:
+        headings = re.split(r'\n#{1,6} ', section)
+        for i, heading in enumerate(headings):
+            if i > 0:
+                yield headings[i-1] + '\n#' + str(i) + ' ' + heading
+            else:
+                yield heading
 def init(path=None):
     global db
     if not path:
