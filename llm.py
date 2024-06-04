@@ -50,15 +50,15 @@ class model:
             return await self.internal_query(self,input,history,images)
     async def avalible(self):
         async def check_status():
-            try:
-                headers = {"Content-Type": "application/json"}
-                ajson = {
-                    "model": self.model,
-                    "stream": False,
-                    "messages": [{"role": "system", "content": ""}]\
-                               +[{"role": "user"  , "content": ""}]
-                }                
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=1)) as session:
+            headers = {"Content-Type": "application/json"}
+            ajson = {
+                "model": self.model,
+                "stream": False,
+                "messages": [{"role": "system", "content": ""}]\
+                            +[{"role": "user"  , "content": ""}]
+            }                
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=1)) as session:
+                try:
                     start = time.time()
                     async with session.post(self.api+"/v1/chat/completions",headers=headers, json=ajson) as resp:
                         r = await resp.json()
@@ -70,13 +70,16 @@ class model:
                     ajson = {
                         "name": self.model,
                     }                
+                except BaseException as e: 
+                    pass
+                try:
                     async with session.post(self.api+"/api/show",headers=headers, json=ajson) as resp:
                         r = await resp.json()
                         if resp.ok:
                             self.fingerprint = 'fp_ollama'
                             return True
-            except BaseException as e: 
-                logging.warning(str(e))
+                except BaseException as e: 
+                    pass
             return False
         if self.wol:
             Status_ok = False
@@ -86,7 +89,8 @@ class model:
                 wol.WakeOnLan(self.wol,[str(net.broadcast_address)])
                 for i in range(60):
                     if await check_status() == True:
-                        logging.debug('llm [%s]:client waked up after %d seconds' % (self.model,i))
+                        if i>0:
+                            logging.debug('llm [%s]:client waked up after %d seconds' % (self.model,i))
                         Status_ok = True
                         break
                 if Status_ok: break
@@ -134,9 +138,8 @@ class ollama_model(model):
             async with session.post(self.api+url, headers=headers, json=ajson) as resp:
                 response_json = await resp.json()
                 if 'error' in response_json:
-                    if not response_json['error']['type'] == 'invalid_request_error':
-                        logging.warning(str(response_json['error']['message']))
-                        return False
+                    logging.warning(str(response_json['error']))
+                    return False
                 res = response_json['embedding']
                 logging.debug('llm [%s]: embedding\n time: %.2fs' % (self.model,time.time()-start_time))
                 return res
