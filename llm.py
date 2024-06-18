@@ -47,7 +47,7 @@ class model:
         if self.fingerprint == 'fp_ollama':
             return await ollama_model.internal_query(self,input,history,images)
         else: 
-            return await self.internal_query(self,input,history,images)
+            return await self.internal_query(input,history,images)
     async def avalible(self):
         async def check_status():
             headers = {"Content-Type": "application/json"}
@@ -66,6 +66,8 @@ class model:
                             logging.debug('llm [%s]: model loaded' % (self.model))
                         if 'system_fingerprint' in r:
                             self.fingerprint = r['system_fingerprint']
+                            return True
+                        else:
                             return True
                     ajson = {
                         "name": self.model,
