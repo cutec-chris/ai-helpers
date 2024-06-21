@@ -18,6 +18,7 @@ class model:
             ajson = {
                 "model": self.model,
                 "stream": False,
+                "images": images,
                 "messages": [{"role": "system", "content": self.system}]\
                            +history
                            +[{"role": "user", "content": input}]
