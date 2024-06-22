@@ -23,8 +23,23 @@ class model:
                            +[{"role": "user", "content": input}]
             }
             if len(images)>0:
-                if self.fingerprint == 'fp_ollama':
-                    ajson["messages"][-1]["images"] = images
+                ajson["messages"][-1]["images"] = images
+            if self.fingerprint != 'fp_ollama':
+                #convert to openai format if not ollama
+                new_messages = []
+                for message in ajson["messages"]:
+                    if message["role"] == "user" and "images" in message:
+                        content = []
+                        if "content" in message:
+                            content.append({"type": "text", "text": message["content"]})
+                        if "images" in message:
+                            for image in message["images"]:
+                                base64_image = image  # assume the image is already base64 encoded
+                                content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}})
+                        new_messages.append({"role": "user", "content": content})
+                    else:
+                        new_messages.append(message)  # keep other message types unchanged
+                ajson["messages"] = new_messages
             if self.kwargs.get('keep_alive',None):
                 ajson['keep_alive'] = self.kwargs.get('keep_alive')
             logging.debug('llm [%s]: query: %s' % (self.model,input))
