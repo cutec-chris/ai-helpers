@@ -18,11 +18,13 @@ class model:
             ajson = {
                 "model": self.model,
                 "stream": False,
-                "images": images,
                 "messages": [{"role": "system", "content": self.system}]\
                            +history
                            +[{"role": "user", "content": input}]
             }
+            if len(images)>0:
+                if self.fingerprint == 'fp_ollama':
+                    ajson["messages"][-1]["images"] = images
             if self.kwargs.get('keep_alive',None):
                 ajson['keep_alive'] = self.kwargs.get('keep_alive')
             logging.debug('llm [%s]: query: %s' % (self.model,input))
@@ -31,7 +33,9 @@ class model:
                 if 'error' in response_json:
                     if not response_json['error']['type'] == 'invalid_request_error':
                         logging.warning(str(response_json['error']['message']))
-                        return False
+                    else:
+                        logging.warning(str(response_json['error']['message']))
+                    return False
                 if 'choices' in response_json:
                     res = response_json['choices'][0]['message']['content']
                 else:
