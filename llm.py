@@ -1,4 +1,4 @@
-import aiohttp,ipaddress,urllib.parse,logging,re,json,time,asyncio
+import aiohttp,ipaddress,urllib.parse,logging,re,json,time,asyncio,base64
 from . import wol
 class model:
     def __init__(self,model,api,**kwargs) -> None:
@@ -35,7 +35,16 @@ class model:
                         if "images" in message:
                             for image in message["images"]:
                                 base64_image = image  # assume the image is already base64 encoded
-                                content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}})
+                                decoded_image = base64.b64decode(base64_image)
+                                # Look for the MIME type in the decoded string
+                                mime_type = None
+                                if decoded_image.startswith(b"\xff\xd8\xff\xe0"):
+                                    mime_type = "image/jpeg"
+                                elif decoded_image.startswith(b"\x89\x50\x4e\x47"):
+                                    mime_type = "image/png"
+                                elif decoded_image.startswith(b"\x47\x49\x46\x38"):
+                                    mime_type = "image/gif"
+                                content.append({"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}})
                         new_messages.append({"role": "user", "content": content})
                     else:
                         new_messages.append(message)  # keep other message types unchanged
