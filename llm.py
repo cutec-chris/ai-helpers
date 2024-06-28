@@ -9,7 +9,11 @@ class model:
         self.fingerprint = None
         if '/v1' in self.api:
             self.api = self.api[:self.api.find('/v1')]
+    async def watchdog(self):
+        await asyncio.sleep(30)
+        await self.avalible()
     async def internal_query(self,input,history=[],images=[],url="/v1/chat/completions"):
+        wd = asyncio.create_task(self.watchdog())
         headers = {"Content-Type": "application/json"}
         if self.kwargs.get('apikey'):
             headers["Authorization"] = f"Bearer {self.kwargs.get('apikey')}"
@@ -59,13 +63,16 @@ class model:
                         logging.warning(str(response_json['error']['message']))
                     else:
                         logging.warning(str(response_json['error']['message']))
+                    wd.cancel()
                     return False
                 if 'choices' in response_json:
                     res = response_json['choices'][0]['message']['content']
                 else:
                     res = response_json['message']['content']
                 logging.debug('llm [%s]: answer: %s\n time: %.2fs' % (self.model,res,time.time()-start_time))
+                wd.cancel()
                 return res
+        wd.cancel()
         return None
     async def internal_embedding(self,input):
         return None
