@@ -83,8 +83,7 @@ class model:
             ajson = {
                 "model": self.model,
                 "stream": False,
-                "messages": [{"role": "system", "content": ""}]\
-                            +[{"role": "user"  , "content": ""}]
+                "messages": []
             }                
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=1)) as session:
                 try:
@@ -101,7 +100,7 @@ class model:
                     ajson = {
                         "name": self.model,
                     }                
-                except BaseException as e: 
+                except BaseException as e:
                     pass
                 try:
                     async with session.post(self.api+"/api/show",headers=headers, json=ajson) as resp:
