@@ -10,8 +10,10 @@ class model:
         if '/v1' in self.api:
             self.api = self.api[:self.api.find('/v1')]
     async def watchdog(self):
-        await asyncio.sleep(30)
-        await self.avalible()
+        await asyncio.sleep(20)
+        if self.wol:
+            logging.info('llm [%s]: watchdog triggered, sending wol' % (self.model))
+            await self.avalible()
     async def internal_query(self,input,history=[],images=[],url="/v1/chat/completions"):
         wd = asyncio.create_task(self.watchdog())
         headers = {"Content-Type": "application/json"}
@@ -55,7 +57,7 @@ class model:
                 ajson["messages"] = new_messages
             if self.kwargs.get('keep_alive',None):
                 ajson['keep_alive'] = self.kwargs.get('keep_alive')
-            logging.debug('llm [%s]: query: %s' % (self.model,input))
+            logging.info('llm [%s]: query: %s' % (self.model,input))
             async with session.post(self.api+url, headers=headers, json=ajson) as resp:
                 response_json = await resp.json()
                 if 'error' in response_json:
@@ -69,7 +71,7 @@ class model:
                     res = response_json['choices'][0]['message']['content']
                 else:
                     res = response_json['message']['content']
-                logging.debug('llm [%s]: answer: %s\n time: %.2fs' % (self.model,res,time.time()-start_time))
+                logging.info('llm [%s]: answer: %s\n time: %.2fs' % (self.model,res,time.time()-start_time))
                 wd.cancel()
                 return res
         wd.cancel()
@@ -90,15 +92,16 @@ class model:
             ajson = {
                 "model": self.model,
                 "stream": False,
-                "messages": []
+                "messages": [{"role": "system", "content": ""},\
+                             {"role": "user", "content": ""}]
             }                
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=1)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=0.5)) as session:
                 try:
                     start = time.time()
                     async with session.post(self.api+"/v1/chat/completions",headers=headers, json=ajson) as resp:
                         r = await resp.json()
                         if time.time()-start > 0.3:
-                            logging.debug('llm [%s]: model loaded' % (self.model))
+                            logging.info('llm [%s]: model loaded' % (self.model))
                         if 'system_fingerprint' in r:
                             self.fingerprint = r['system_fingerprint']
                             return True
@@ -124,10 +127,11 @@ class model:
                 purl = urllib.parse.urlparse(self.api)
                 net = ipaddress.IPv4Network(purl.hostname + '/' + '255.255.255.0', False)
                 wol.WakeOnLan(self.wol,[str(net.broadcast_address)])
+                start = time.time()
                 for i in range(60):
                     if await check_status() == True:
-                        if i>0:
-                            logging.debug('llm [%s]:client waked up after %d seconds' % (self.model,i))
+                        if time.time()-start>1:
+                            logging.info('llm [%s]:client waked up after %d seconds' % (self.model,time.time()-start))
                         Status_ok = True
                         break
                 if Status_ok: break
