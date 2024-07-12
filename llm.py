@@ -60,12 +60,14 @@ class model:
             logging.info('llm [%s]: query: %s' % (self.model,input))
             async with session.post(self.api+url, headers=headers, json=ajson) as resp:
                 response_json = await resp.json()
+                self.LastError = None
                 if 'error' in response_json:
                     if not response_json['error']['type'] == 'invalid_request_error':
-                        logging.warning(str(response_json['error']['message']))
+                        self.LastError = str(response_json['error']['message'])
                     else:
-                        logging.warning(str(response_json['error']['message']))
+                        self.LastError = str(response_json['error']['message'])
                     wd.cancel()
+                    logging.warning(self.LastError)
                     return False
                 if 'choices' in response_json:
                     res = response_json['choices'][0]['message']['content']
