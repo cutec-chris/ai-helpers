@@ -28,6 +28,9 @@ class model:
                            +history
                            +[{"role": "user", "content": input}]
             }
+            for param in ['seed','temperature','top_p','max_tokens','frequency_penalty','presence_penalty']:
+                if self.kwargs.get(param):
+                    ajson[param] = self.kwargs.get(param)
             if len(images)>0:
                 ajson["messages"][-1]["images"] = images
             if self.fingerprint != 'fp_ollama':
