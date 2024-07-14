@@ -7,6 +7,7 @@ class model:
         self.wol = kwargs.get('wol',None)
         self.kwargs = kwargs
         self.fingerprint = None
+        self.LastError = None
         if '/v1' in self.api:
             self.api = self.api[:self.api.find('/v1')]
     async def watchdog(self):
