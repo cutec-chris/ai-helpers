@@ -129,12 +129,12 @@ class model:
             return False
         if self.wol:
             Status_ok = False
-            for a in range(3):
+            for a in range(9):
                 purl = urllib.parse.urlparse(self.api)
                 net = ipaddress.IPv4Network(purl.hostname + '/' + '255.255.255.0', False)
                 wol.WakeOnLan(self.wol,[str(net.broadcast_address)])
                 start = time.time()
-                for i in range(60):
+                for i in range(30):
                     if await check_status() == True:
                         if time.time()-start>1:
                             logging.info('llm [%s]:client waked up after %d seconds' % (self.model,time.time()-start))
