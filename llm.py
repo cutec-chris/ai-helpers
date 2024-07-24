@@ -66,10 +66,13 @@ class model:
                 response_json = await resp.json()
                 self.LastError = None
                 if 'error' in response_json:
-                    if not response_json['error']['type'] == 'invalid_request_error':
-                        self.LastError = str(response_json['error']['message'])
-                    else:
-                        self.LastError = str(response_json['error']['message'])
+                    try:
+                        if not response_json['error']['type'] == 'invalid_request_error':
+                            self.LastError = str(response_json['error']['message'])
+                        else:
+                            self.LastError = str(response_json['error']['message'])
+                    except:
+                        self.LastError = str(response_json['error'])
                     wd.cancel()
                     logging.warning(self.LastError)
                     return False
