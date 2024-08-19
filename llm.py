@@ -99,10 +99,22 @@ class model:
         async def check_status():
             headers = {"Content-Type": "application/json"}
             ajson = {
+                "name": self.model,
+            }                
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=0.5)) as session:
+                try:
+                    async with session.post(self.api+"/api/show",headers=headers, json=ajson) as resp:
+                        r = await resp.json()
+                        if resp.ok:
+                            self.fingerprint = 'fp_ollama'
+                            return True
+                except BaseException as e: 
+                    pass
+            ajson = {
                 "model": self.model,
                 "stream": False,
-                "messages": [{"role": "system", "content": ""},\
-                             {"role": "user", "content": ""}]
+                "messages": [{"role": "system", "content": " "},\
+                             {"role": "user", "content": " "}]
             }                
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=0.5)) as session:
                 try:
@@ -116,18 +128,7 @@ class model:
                             return True
                         else:
                             return True
-                    ajson = {
-                        "name": self.model,
-                    }                
                 except BaseException as e:
-                    pass
-                try:
-                    async with session.post(self.api+"/api/show",headers=headers, json=ajson) as resp:
-                        r = await resp.json()
-                        if resp.ok:
-                            self.fingerprint = 'fp_ollama'
-                            return True
-                except BaseException as e: 
                     pass
             return False
         if self.wol:
