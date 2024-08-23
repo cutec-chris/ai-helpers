@@ -21,7 +21,7 @@ class model:
         if self.kwargs.get('apikey'):
             headers["Authorization"] = f"Bearer {self.kwargs.get('apikey')}"
         start_time = time.time()
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=None)) as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as session:
             ajson = {
                 "model": self.model,
                 "stream": False,
