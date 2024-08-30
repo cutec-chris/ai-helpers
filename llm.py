@@ -21,7 +21,7 @@ class model:
         if self.kwargs.get('apikey'):
             headers["Authorization"] = f"Bearer {self.kwargs.get('apikey')}"
         start_time = time.time()
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120)) as session:
             ajson = {
                 "model": self.model,
                 "stream": False,
@@ -101,7 +101,7 @@ class model:
             ajson = {
                 "name": self.model,
             }                
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=0.5)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=0.8)) as session:
                 try:
                     async with session.post(self.api+"/api/show",headers=headers, json=ajson) as resp:
                         r = await resp.json()
@@ -116,7 +116,7 @@ class model:
                 "messages": [{"role": "system", "content": " "},\
                              {"role": "user", "content": " "}]
             }                
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=0.5)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=0.8)) as session:
                 try:
                     start = time.time()
                     async with session.post(self.api+"/v1/chat/completions",headers=headers, json=ajson) as resp:
