@@ -21,68 +21,70 @@ class model:
         if self.kwargs.get('apikey'):
             headers["Authorization"] = f"Bearer {self.kwargs.get('apikey')}"
         start_time = time.time()
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120)) as session:
-            ajson = {
-                "model": self.model,
-                "stream": False,
-                "messages": [{"role": "system", "content": self.system}]\
-                           +history
-                           +[{"role": "user", "content": input}]
-            }
-            for param in ['seed','temperature','top_p','max_tokens','frequency_penalty','presence_penalty']:
-                if self.kwargs.get(param):
-                    ajson[param] = self.kwargs.get(param)
-            if len(images)>0:
-                ajson["messages"][-1]["images"] = images
-            if self.fingerprint != 'fp_ollama':
-                #convert to openai format if not ollama
-                new_messages = []
-                for message in ajson["messages"]:
-                    if message["role"] == "user" and "images" in message:
-                        content = []
-                        if "content" in message:
-                            content.append({"type": "text", "text": message["content"]})
-                        if "images" in message:
-                            for image in message["images"]:
-                                base64_image = image  # assume the image is already base64 encoded
-                                decoded_image = base64.b64decode(base64_image)
-                                # Look for the MIME type in the decoded string
-                                mime_type = None
-                                if decoded_image.startswith(b"\xff\xd8\xff\xe0"):
-                                    mime_type = "image/jpeg"
-                                elif decoded_image.startswith(b"\x89\x50\x4e\x47"):
-                                    mime_type = "image/png"
-                                elif decoded_image.startswith(b"\x47\x49\x46\x38"):
-                                    mime_type = "image/gif"
-                                content.append({"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}})
-                        new_messages.append({"role": "user", "content": content})
-                    else:
-                        new_messages.append(message)  # keep other message types unchanged
-                ajson["messages"] = new_messages
-            if self.kwargs.get('keep_alive',None):
-                ajson['keep_alive'] = self.kwargs.get('keep_alive')
-            logging.info('llm [%s]: query: %s' % (self.model,input))
-            async with session.post(self.api+url, headers=headers, json=ajson) as resp:
-                response_json = await resp.json()
-                self.LastError = None
-                if 'error' in response_json:
-                    try:
-                        if not response_json['error']['type'] == 'invalid_request_error':
-                            self.LastError = str(response_json['error']['message'])
+        for retry in range(2):
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120)) as session:
+                ajson = {
+                    "model": self.model,
+                    "stream": False,
+                    "messages": [{"role": "system", "content": self.system}]\
+                            +history
+                            +[{"role": "user", "content": input}]
+                }
+                for param in ['seed','temperature','top_p','max_tokens','frequency_penalty','presence_penalty']:
+                    if self.kwargs.get(param):
+                        ajson[param] = self.kwargs.get(param)
+                if len(images)>0:
+                    ajson["messages"][-1]["images"] = images
+                if self.fingerprint != 'fp_ollama':
+                    #convert to openai format if not ollama
+                    new_messages = []
+                    for message in ajson["messages"]:
+                        if message["role"] == "user" and "images" in message:
+                            content = []
+                            if "content" in message:
+                                content.append({"type": "text", "text": message["content"]})
+                            if "images" in message:
+                                for image in message["images"]:
+                                    base64_image = image  # assume the image is already base64 encoded
+                                    decoded_image = base64.b64decode(base64_image)
+                                    # Look for the MIME type in the decoded string
+                                    mime_type = None
+                                    if decoded_image.startswith(b"\xff\xd8\xff\xe0"):
+                                        mime_type = "image/jpeg"
+                                    elif decoded_image.startswith(b"\x89\x50\x4e\x47"):
+                                        mime_type = "image/png"
+                                    elif decoded_image.startswith(b"\x47\x49\x46\x38"):
+                                        mime_type = "image/gif"
+                                    content.append({"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}})
+                            new_messages.append({"role": "user", "content": content})
                         else:
-                            self.LastError = str(response_json['error']['message'])
-                    except:
-                        self.LastError = str(response_json['error'])
+                            new_messages.append(message)  # keep other message types unchanged
+                    ajson["messages"] = new_messages
+                if self.kwargs.get('keep_alive',None):
+                    ajson['keep_alive'] = self.kwargs.get('keep_alive')
+                logging.info('llm [%s]: query: %s' % (self.model,input))
+                async with session.post(self.api+url, headers=headers, json=ajson) as resp:
+                    response_json = await resp.json()
+                    self.LastError = None
+                    if 'error' in response_json:
+                        try:
+                            if not response_json['error']['type'] == 'invalid_request_error':
+                                self.LastError = str(response_json['error']['message'])
+                            else:
+                                self.LastError = str(response_json['error']['message'])
+                        except:
+                            self.LastError = str(response_json['error'])
+                        wd.cancel()
+                        logging.warning(self.LastError)
+                    if 'choices' in response_json:
+                        res = response_json['choices'][0]['message']['content']
+                    else:
+                        res = response_json['message']['content']
+                    logging.info('llm [%s]: answer: %s\n time: %.2fs' % (self.model,res,time.time()-start_time))
                     wd.cancel()
-                    logging.warning(self.LastError)
-                    return False
-                if 'choices' in response_json:
-                    res = response_json['choices'][0]['message']['content']
-                else:
-                    res = response_json['message']['content']
-                logging.info('llm [%s]: answer: %s\n time: %.2fs' % (self.model,res,time.time()-start_time))
-                wd.cancel()
-                return res
+                    return res
+            wd.cancel()
+            return False
         wd.cancel()
         return None
     async def internal_embedding(self,input):
@@ -101,7 +103,7 @@ class model:
             ajson = {
                 "name": self.model,
             }                
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=0.8)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=0.2)) as session:
                 try:
                     async with session.post(self.api+"/api/show",headers=headers, json=ajson) as resp:
                         r = await resp.json()
@@ -116,7 +118,7 @@ class model:
                 "messages": [{"role": "system", "content": " "},\
                              {"role": "user", "content": " "}]
             }                
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=0.8)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=0.2)) as session:
                 try:
                     start = time.time()
                     async with session.post(self.api+"/v1/chat/completions",headers=headers, json=ajson) as resp:
@@ -132,19 +134,20 @@ class model:
                     pass
             return False
         if self.wol:
-            Status_ok = False
-            for a in range(9):
-                purl = urllib.parse.urlparse(self.api)
-                net = ipaddress.IPv4Network(purl.hostname + '/' + '255.255.255.0', False)
-                wol.WakeOnLan(self.wol,[str(net.broadcast_address)])
+            if await check_status() == False:
+                Status_ok = False
                 start = time.time()
-                for i in range(30):
-                    if await check_status() == True:
-                        if time.time()-start>1:
+                logging.info('llm [%s]:try to wake up client' % (self.model))
+                for a in range(9):
+                    purl = urllib.parse.urlparse(self.api)
+                    net = ipaddress.IPv4Network(purl.hostname + '/' + '255.255.255.0', False)
+                    wol.WakeOnLan(self.wol,[str(net.broadcast_address)])
+                    for i in range(60):
+                        if await check_status() == True:
                             logging.info('llm [%s]:client waked up after %d seconds' % (self.model,time.time()-start))
-                        Status_ok = True
-                        break
-                if Status_ok: break
+                            Status_ok = True
+                            break
+                    if Status_ok: break
         return await check_status()
     async def embedding(self,input):
         if not await self.avalible():
