@@ -76,6 +76,7 @@ class model:
                             self.LastError = str(response_json['error'])
                         wd.cancel()
                         logging.warning(self.LastError)
+                        return False
                     if 'choices' in response_json:
                         res = response_json['choices'][0]['message']['content']
                     else:
