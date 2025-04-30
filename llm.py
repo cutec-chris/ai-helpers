@@ -81,6 +81,7 @@ class model:
                         res = response_json['choices'][0]['message']['content']
                     else:
                         res = response_json['message']['content']
+                    res = res[res.find('</think>'):].replace('</think>','')
                     logging.info('llm [%s]: answer: %s\n time: %.2fs' % (self.model,res,time.time()-start_time))
                     wd.cancel()
                     return res
